@@ -37,47 +37,47 @@ const principles = [
 export default function Home() {
   return (
     <main className="min-h-screen bg-[#efe7db] text-[#2f2a24]">
-      <div className="mx-auto max-w-7xl px-6 py-8 md:px-10 lg:px-12">
-        <header className="flex items-center justify-between py-4">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 md:px-10 lg:px-12">
+        <header className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <Link to="/" className="block">
-            <p className="font-['Space_Grotesk'] text-3xl font-bold tracking-[0.18em] text-[#6f5948] md:text-4xl">
+            <p className="font-['Space_Grotesk'] text-2xl font-bold tracking-[0.14em] text-[#6f5948] sm:text-3xl md:text-4xl">
               SPREADNEST
             </p>
-            <h1 className="mt-2 font-['Space_Grotesk'] text-2xl font-semibold text-[#26231f]">
+            <h1 className="mt-2 font-['Space_Grotesk'] text-xl font-semibold text-[#26231f] sm:text-2xl">
               Clear arbitrage, explained simply.
             </h1>
           </Link>
 
           <Link
             to="/scanner"
-            className="inline-flex items-center gap-2 rounded-full bg-[#26473c] px-5 py-2.5 text-sm font-semibold text-[#f7f2ea] transition hover:bg-[#1f3c33]"
+            className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-[#26473c] px-5 py-2.5 text-sm font-semibold text-[#f7f2ea] transition hover:bg-[#1f3c33] sm:self-auto"
           >
             Go
             <ArrowRight className="h-4 w-4" />
           </Link>
         </header>
 
-        <section className="grid gap-8 py-10 lg:grid-cols-[1.02fr_0.98fr]">
-          <div className="rounded-[2rem] bg-[#f8f3ec] p-8 shadow-[0_20px_50px_rgba(80,59,40,0.08)] md:p-10">
-            <div className="inline-flex items-center rounded-full bg-[#e7ddd0] px-4 py-2 text-sm font-medium text-[#65584b]">
+        <section className="grid gap-6 py-8 md:gap-8 md:py-10 lg:grid-cols-[1.02fr_0.98fr]">
+          <div className="rounded-[2rem] bg-[#f8f3ec] p-5 shadow-[0_20px_50px_rgba(80,59,40,0.08)] sm:p-6 md:p-10">
+            <div className="inline-flex items-center rounded-full bg-[#e7ddd0] px-4 py-2 text-xs font-medium text-[#65584b] sm:text-sm">
               Buy lower on one exchange. Sell higher on another.
             </div>
 
-            <h2 className="mt-6 max-w-3xl font-['Space_Grotesk'] text-5xl font-semibold leading-[1.02] text-[#2b2621] md:text-6xl">
+            <h2 className="mt-5 max-w-3xl font-['Space_Grotesk'] text-3xl font-semibold leading-[1.05] text-[#2b2621] sm:text-4xl md:mt-6 md:text-5xl lg:text-6xl">
               Understand how arbitrage can make money before entering the live signal terminal.
             </h2>
 
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-[#5a5044]">
+            <p className="mt-5 max-w-2xl text-base leading-7 text-[#5a5044] md:mt-6 md:text-lg md:leading-8">
               Arbitrage happens when the same asset is priced differently across two exchanges. If Bitcoin is cheaper
               on one platform and more expensive on another, a trader may buy on the cheaper exchange and sell on the
               expensive exchange. The gap between those two prices is the opportunity, and the scanner helps surface it
               in real time.
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-4">
+            <div className="mt-7 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-4">
               <Link
                 to="/scanner"
-                className="inline-flex items-center gap-2 rounded-full bg-[#b5674d] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#a55a43]"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#b5674d] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#a55a43]"
               >
                 Open terminal
                 <ArrowRight className="h-4 w-4" />
@@ -85,14 +85,14 @@ export default function Home() {
 
               <a
                 href="#process"
-                className="inline-flex items-center gap-2 rounded-full border border-[#d4c5b5] bg-white px-6 py-3 text-sm font-semibold text-[#4c4339] transition hover:bg-[#faf6f1]"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-[#d4c5b5] bg-white px-6 py-3 text-sm font-semibold text-[#4c4339] transition hover:bg-[#faf6f1]"
               >
                 See the process
                 <ChevronRight className="h-4 w-4" />
               </a>
             </div>
 
-            <div className="mt-10 grid gap-4 md:grid-cols-3">
+            <div className="mt-8 grid gap-4 md:mt-10 md:grid-cols-3">
               {principles.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -108,9 +108,9 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="rounded-[2rem] bg-[#2b2a28] p-5 text-[#f3ecdf] shadow-[0_28px_65px_rgba(43,42,40,0.22)]">
-            <div className="rounded-[1.5rem] border border-white/10 bg-[#232220] p-5 md:p-6">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+          <div className="rounded-[2rem] bg-[#2b2a28] p-4 text-[#f3ecdf] shadow-[0_28px_65px_rgba(43,42,40,0.22)] sm:p-5">
+            <div className="rounded-[1.5rem] border border-white/10 bg-[#232220] p-4 sm:p-5 md:p-6">
+              <div className="flex flex-col gap-4 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-xs font-mono uppercase tracking-[0.32em] text-[#d0b79d]">Example signal</p>
                   <h3 className="mt-2 font-['Space_Grotesk'] text-2xl font-semibold text-white">BTC cross-exchange spread</h3>
@@ -124,7 +124,7 @@ export default function Home() {
                 <div className="rounded-[1.35rem] bg-[#342f2b] p-5">
                   <p className="text-xs font-mono uppercase tracking-[0.3em] text-[#d3b193]">Buy side</p>
                   <h4 className="mt-3 font-['Space_Grotesk'] text-2xl font-semibold text-white">Kraken</h4>
-                  <p className="mt-3 text-4xl font-semibold text-[#f5eadf]">$63,420</p>
+                  <p className="mt-3 text-3xl font-semibold text-[#f5eadf] sm:text-4xl">$63,420</p>
                   <p className="mt-4 text-sm leading-7 text-[#d1c2b1]">
                     The scanner identifies Kraken as the cheaper exchange, so this is where the trade begins.
                   </p>
@@ -133,7 +133,7 @@ export default function Home() {
                 <div className="rounded-[1.35rem] bg-[#21352f] p-5">
                   <p className="text-xs font-mono uppercase tracking-[0.3em] text-[#bfd8c4]">Sell side</p>
                   <h4 className="mt-3 font-['Space_Grotesk'] text-2xl font-semibold text-white">Binance</h4>
-                  <p className="mt-3 text-4xl font-semibold text-[#eef7ef]">$64,980</p>
+                  <p className="mt-3 text-3xl font-semibold text-[#eef7ef] sm:text-4xl">$64,980</p>
                   <p className="mt-4 text-sm leading-7 text-[#d7e6da]">
                     Binance is pricing higher in this example, so that is where the trader sells.
                   </p>
@@ -141,7 +141,7 @@ export default function Home() {
               </div>
 
               <div className="mt-4 rounded-[1.35rem] border border-dashed border-white/15 bg-[#2f2e2b] p-5">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className="text-xs font-mono uppercase tracking-[0.3em] text-[#d0b79d]">What the signal means</p>
                     <p className="mt-3 text-sm leading-8 text-[#ddd2c4]">
@@ -174,7 +174,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="process" className="pb-14">
+        <section id="process" className="pb-12 md:pb-14">
           <div className="mb-6">
             <p className="text-xs font-mono uppercase tracking-[0.34em] text-[#8a705c]">How the process works</p>
             <h3 className="mt-2 font-['Space_Grotesk'] text-3xl font-semibold text-[#2b2621]">
