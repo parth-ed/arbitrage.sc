@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { CoinData, ArbitrageSignal, HistorySignal, EXCHANGES, TOP_25_COINS, COIN_SYMBOLS } from '@/lib/exchanges';
+import { supabase } from '@/lib/supabase';
 
 const COINGECKO_API = 'https://api.coingecko.com/api/v3';
 const REFRESH_INTERVAL = 10000;
@@ -7,6 +8,21 @@ const MIN_PROFIT_MARGIN = 4.0;
 const KEEP_ALIVE_MARGIN = 1.5;
 const ACTIONABLE_TIME = 60000;
 const MAX_HISTORY = 200;
+
+interface SignalHistoryRow {
+  id: string;
+  symbol: string;
+  buy_exchange: string;
+  sell_exchange: string;
+  buy_price: string | number;
+  sell_price: string | number;
+  average_net_profit_margin: string | number;
+  peak_net_profit_margin: string | number;
+  net_profit_amount: string | number;
+  duration: number;
+  expired_at: string;
+  created_at: string;
+}
 
 function simpleHash(str: string): number {
   let hash = 0;
@@ -47,6 +63,76 @@ function makeSignalKey(coinId: string, buyExchange: string, sellExchange: string
   return `${coinId}:${buyExchange}:${sellExchange}`;
 }
 
+function toNumber(value: string | number) {
+  return typeof value === 'number' ? value : Number(value);
+}
+
+function mapHistoryRow(row: SignalHistoryRow): HistorySignal {
+  return {
+    id: row.id,
+    coin: row.symbol,
+    symbol: row.symbol,
+    buyExchange: row.buy_exchange,
+    sellExchange: row.sell_exchange,
+    buyPrice: toNumber(row.buy_price),
+    sellPrice: toNumber(row.sell_price),
+    profitMargin: 0,
+    profitAmount: 0,
+    buyFee: 0,
+    sellFee: 0,
+    totalFees: 0,
+    netProfitMargin: toNumber(row.average_net_profit_margin),
+    netProfitAmount: toNumber(row.net_profit_amount),
+    timestamp: new Date(row.expired_at).getTime(),
+    signalKey: `${row.symbol}:${row.buy_exchange}:${row.sell_exchange}:${row.expired_at}`,
+    firstSeen: new Date(row.created_at).getTime() - row.duration,
+    netProfitMarginSum: toNumber(row.average_net_profit_margin),
+    observationCount: 1,
+    averageNetProfitMargin: toNumber(row.average_net_profit_margin),
+    peakNetProfitMargin: toNumber(row.peak_net_profit_margin),
+    expiredAt: new Date(row.expired_at).getTime(),
+    duration: row.duration,
+  };
+}
+
+async function fetchSharedHistory() {
+  if (!supabase) return [] as HistorySignal[];
+
+  const { data, error } = await supabase
+    .from('signal_history')
+    .select('*')
+    .order('expired_at', { ascending: false })
+    .limit(MAX_HISTORY);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data as SignalHistoryRow[]).map(mapHistoryRow);
+}
+
+async function persistHistorySignals(signals: HistorySignal[]) {
+  if (!supabase || signals.length === 0) return;
+
+  const payload = signals.map((signal) => ({
+    symbol: signal.symbol,
+    buy_exchange: signal.buyExchange,
+    sell_exchange: signal.sellExchange,
+    buy_price: signal.buyPrice,
+    sell_price: signal.sellPrice,
+    average_net_profit_margin: signal.averageNetProfitMargin,
+    peak_net_profit_margin: signal.peakNetProfitMargin,
+    net_profit_amount: signal.netProfitAmount,
+    duration: signal.duration,
+    expired_at: new Date(signal.expiredAt).toISOString(),
+  }));
+
+  const { error } = await supabase.from('signal_history').insert(payload);
+  if (error) {
+    throw error;
+  }
+}
+
 export function useArbitrageScanner() {
   const [coins, setCoins] = useState<CoinData[]>([]);
   const [signals, setSignals] = useState<ArbitrageSignal[]>([]);
@@ -59,6 +145,15 @@ export function useArbitrageScanner() {
 
   const onNewSignal = useCallback((cb: (signal: ArbitrageSignal) => void) => {
     newSignalCallback.current = cb;
+  }, []);
+
+  const loadSharedHistory = useCallback(async () => {
+    try {
+      const sharedHistory = await fetchSharedHistory();
+      setHistory(sharedHistory);
+    } catch (err) {
+      console.error(err);
+    }
   }, []);
 
   const fetchPrices = useCallback(async () => {
@@ -178,9 +273,17 @@ export function useArbitrageScanner() {
       if (expiredSignals.length > 0) {
         setHistory((prev) => {
           const combined = [...expiredSignals, ...prev].slice(0, MAX_HISTORY);
-          combined.sort((a, b) => b.averageNetProfitMargin - a.averageNetProfitMargin);
+          combined.sort((a, b) => b.expiredAt - a.expiredAt);
           return combined;
         });
+
+        try {
+          await persistHistorySignals(expiredSignals);
+          await loadSharedHistory();
+        } catch (err) {
+          console.error(err);
+          setError('Could not sync shared signal history');
+        }
       }
 
       const prevKeySet = new Set(prevSignalsRef.current.map((signal) => signal.signalKey));
@@ -193,7 +296,11 @@ export function useArbitrageScanner() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch prices');
     }
-  }, []);
+  }, [loadSharedHistory]);
+
+  useEffect(() => {
+    loadSharedHistory();
+  }, [loadSharedHistory]);
 
   useEffect(() => {
     if (!isScanning) return;
