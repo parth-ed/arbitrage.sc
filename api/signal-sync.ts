@@ -4,6 +4,7 @@ const COINGECKO_API = 'https://api.coingecko.com/api/v3';
 const MIN_PROFIT_MARGIN = 4.0;
 const KEEP_ALIVE_MARGIN = 1.5;
 const ACTIONABLE_TIME = 60000;
+const SYNC_CACHE_MS = 2 * 60 * 1000;
 
 const EXCHANGES = [
   { id: 'binance', name: 'Binance', takerFee: 0.10 },
@@ -100,6 +101,29 @@ export default async function handler(_req: any, res: any) {
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const now = Date.now();
+
+    const { data: latestMarketRow, error: latestMarketError } = await supabase
+      .from('market_prices')
+      .select('last_updated')
+      .order('last_updated', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (latestMarketError) {
+      throw latestMarketError;
+    }
+
+    if (latestMarketRow?.last_updated) {
+      const lastUpdatedAt = new Date(latestMarketRow.last_updated).getTime();
+      if (now - lastUpdatedAt < SYNC_CACHE_MS) {
+        return res.status(200).json({
+          ok: true,
+          cached: true,
+          lastUpdated: latestMarketRow.last_updated,
+        });
+      }
+    }
 
     const ids = TOP_25_COINS.join(',');
     const response = await fetch(
@@ -107,11 +131,22 @@ export default async function handler(_req: any, res: any) {
     );
 
     if (!response.ok) {
+      const { data: activeSignals } = await supabase.from('active_signals').select('signal_key').limit(1);
+      const { data: marketRows } = await supabase.from('market_prices').select('row_key').limit(1);
+
+      if ((activeSignals?.length ?? 0) > 0 || (marketRows?.length ?? 0) > 0) {
+        return res.status(200).json({
+          ok: true,
+          cached: true,
+          stale: true,
+          warning: `CoinGecko error ${response.status}`,
+        });
+      }
+
       return res.status(response.status).json({ error: `CoinGecko error ${response.status}` });
     }
 
     const data = await response.json();
-    const now = Date.now();
 
     const coins = data.map((coin: any) => ({
       id: coin.id,
@@ -259,6 +294,7 @@ export default async function handler(_req: any, res: any) {
 
     return res.status(200).json({
       ok: true,
+      cached: false,
       activeSignals: nextSignals.length,
       expiredSignals: expiredSignals.length,
       marketRows: marketRows.length,

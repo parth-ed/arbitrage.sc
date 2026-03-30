@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 
 const REFRESH_INTERVAL = 15000;
 const MAX_HISTORY = 200;
-const SYNC_COOLDOWN_MS = 60000;
+const SYNC_COOLDOWN_MS = 3 * 60 * 1000;
 
 interface MarketPriceRow {
   row_key: string;
@@ -179,7 +179,11 @@ export function useArbitrageScanner() {
     try {
       setError(null);
 
-      await triggerSharedSync();
+      try {
+        await triggerSharedSync();
+      } catch (syncError) {
+        console.error(syncError);
+      }
 
       const [{ data: marketData, error: marketError }, { data: activeData, error: activeError }, { data: historyData, error: historyError }] =
         await Promise.all([
@@ -215,7 +219,7 @@ export function useArbitrageScanner() {
       }
     } catch (err) {
       console.error(err);
-      setError(err instanceof Error ? err.message : 'Could not load shared signal data');
+      setError('Could not load shared signal data');
     }
   }, []);
 
