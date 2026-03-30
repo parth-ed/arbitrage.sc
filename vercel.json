@@ -1,10 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/signal-sync",
-      "schedule": "*/2 * * * *"
-    }
-  ],
   "rewrites": [
     {
       "source": "/(.*)",

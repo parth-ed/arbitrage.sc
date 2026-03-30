@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 
 const REFRESH_INTERVAL = 15000;
 const MAX_HISTORY = 200;
+const SYNC_COOLDOWN_MS = 60000;
 
 interface MarketPriceRow {
   row_key: string;
@@ -139,6 +140,22 @@ function mapHistoryRows(rows: HistorySignalRow[]): HistorySignal[] {
   }));
 }
 
+async function triggerSharedSync() {
+  const cacheKey = 'spreadnest-last-sync';
+  const lastSync = Number(window.localStorage.getItem(cacheKey) ?? '0');
+
+  if (Date.now() - lastSync < SYNC_COOLDOWN_MS) {
+    return;
+  }
+
+  const response = await fetch('/api/signal-sync', { method: 'GET' });
+  if (!response.ok) {
+    throw new Error('Could not sync shared signal data');
+  }
+
+  window.localStorage.setItem(cacheKey, String(Date.now()));
+}
+
 export function useArbitrageScanner() {
   const [coins, setCoins] = useState<CoinData[]>([]);
   const [signals, setSignals] = useState<ArbitrageSignal[]>([]);
@@ -161,6 +178,8 @@ export function useArbitrageScanner() {
 
     try {
       setError(null);
+
+      await triggerSharedSync();
 
       const [{ data: marketData, error: marketError }, { data: activeData, error: activeError }, { data: historyData, error: historyError }] =
         await Promise.all([
@@ -196,7 +215,7 @@ export function useArbitrageScanner() {
       }
     } catch (err) {
       console.error(err);
-      setError('Could not load shared signal data');
+      setError(err instanceof Error ? err.message : 'Could not load shared signal data');
     }
   }, []);
 
