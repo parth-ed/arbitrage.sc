@@ -1,15 +1,20 @@
 export const EXCHANGES = [
-  { id: 'binance', name: 'Binance', color: '#F0B90B', takerFee: 0.10, withdrawalFee: 0.0005 },
-  { id: 'bybit', name: 'Bybit', color: '#F7A600', takerFee: 0.10, withdrawalFee: 0.0005 },
-  { id: 'kraken', name: 'Kraken', color: '#5741D9', takerFee: 0.26, withdrawalFee: 0.00015 },
-  { id: 'coinbase', name: 'Coinbase', color: '#0052FF', takerFee: 0.40, withdrawalFee: 0.0 },
-  { id: 'kucoin', name: 'KuCoin', color: '#23AF91', takerFee: 0.10, withdrawalFee: 0.0005 },
-  { id: 'gate', name: 'Gate.io', color: '#2354E6', takerFee: 0.20, withdrawalFee: 0.001 },
-  { id: 'htx', name: 'HTX', color: '#2BAF72', takerFee: 0.20, withdrawalFee: 0.001 },
-  { id: 'okx', name: 'OKX', color: '#FFFFFF', takerFee: 0.10, withdrawalFee: 0.0004 },
+  { id: 'binance', name: 'Binance', url: 'https://www.binance.com/', color: '#F0B90B', takerFee: 0.10, withdrawalFee: 0.0005 },
+  { id: 'bybit', name: 'Bybit', url: 'https://www.bybit.com/', color: '#F7A600', takerFee: 0.10, withdrawalFee: 0.0005 },
+  { id: 'kraken', name: 'Kraken', url: 'https://www.kraken.com/', color: '#5741D9', takerFee: 0.26, withdrawalFee: 0.00015 },
+  { id: 'coinbase', name: 'Coinbase', url: 'https://www.coinbase.com/', color: '#0052FF', takerFee: 0.40, withdrawalFee: 0.0 },
+  { id: 'kucoin', name: 'KuCoin', url: 'https://www.kucoin.com/', color: '#23AF91', takerFee: 0.10, withdrawalFee: 0.0005 },
+  { id: 'gate', name: 'Gate.io', url: 'https://www.gate.io/', color: '#2354E6', takerFee: 0.20, withdrawalFee: 0.001 },
+  { id: 'htx', name: 'HTX', url: 'https://www.htx.com/', color: '#2BAF72', takerFee: 0.20, withdrawalFee: 0.001 },
+  { id: 'okx', name: 'OKX', url: 'https://www.okx.com/', color: '#FFFFFF', takerFee: 0.10, withdrawalFee: 0.0004 },
 ] as const;
 
 export type ExchangeId = typeof EXCHANGES[number]['id'];
+export type ExchangeInfo = typeof EXCHANGES[number];
+
+export function getExchangeByName(name: string): ExchangeInfo | undefined {
+  return EXCHANGES.find((exchange) => exchange.name === name);
+}
 
 export const TOP_25_COINS = [
   'bitcoin', 'ethereum', 'tether', 'binancecoin', 'solana',

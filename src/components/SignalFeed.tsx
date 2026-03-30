@@ -1,4 +1,4 @@
-import { ArbitrageSignal } from '@/lib/exchanges';
+import { ArbitrageSignal, getExchangeByName } from '@/lib/exchanges';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, ArrowRight, Trash2, Star, DollarSign, Clock, CheckCircle2, Timer } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
@@ -23,6 +23,8 @@ const CONFIRM_TIME = 60000;
 
 function SignalCard({ signal, highlight, isActionable }: { signal: ArbitrageSignal; highlight?: boolean; isActionable?: boolean }) {
   const [elapsed, setElapsed] = useState(Date.now() - signal.firstSeen);
+  const buyExchange = getExchangeByName(signal.buyExchange);
+  const sellExchange = getExchangeByName(signal.sellExchange);
 
   useEffect(() => {
     const timer = setInterval(() => setElapsed(Date.now() - signal.firstSeen), 1000);
@@ -70,9 +72,23 @@ function SignalCard({ signal, highlight, isActionable }: { signal: ArbitrageSign
       </div>
 
       <div className="flex items-center gap-1.5 text-xs font-mono">
-        <span className="text-profit">BUY {signal.buyExchange}</span>
+        <a
+          href={buyExchange?.url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-profit hover:underline underline-offset-4"
+        >
+          BUY {signal.buyExchange}
+        </a>
         <ArrowRight className="h-3 w-3 text-muted-foreground" />
-        <span className="text-loss">SELL {signal.sellExchange}</span>
+        <a
+          href={sellExchange?.url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-loss hover:underline underline-offset-4"
+        >
+          SELL {signal.sellExchange}
+        </a>
       </div>
 
       <div className="flex items-center justify-between mt-2 text-xs font-mono text-muted-foreground">

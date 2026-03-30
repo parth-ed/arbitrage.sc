@@ -1,4 +1,4 @@
-import { HistorySignal } from '@/lib/exchanges';
+import { HistorySignal, getExchangeByName } from '@/lib/exchanges';
 import { motion, AnimatePresence } from 'framer-motion';
 import { History, ArrowRight, Trash2, Clock, DollarSign, Star } from 'lucide-react';
 
@@ -20,6 +20,8 @@ function formatDuration(ms: number): string {
 
 function HistoryCard({ signal }: { signal: HistorySignal }) {
   const isTop = signal.averageNetProfitMargin >= 7;
+  const buyExchange = getExchangeByName(signal.buyExchange);
+  const sellExchange = getExchangeByName(signal.sellExchange);
 
   return (
     <motion.div
@@ -50,9 +52,23 @@ function HistoryCard({ signal }: { signal: HistorySignal }) {
         </span>
       </div>
       <div className="flex items-center gap-1.5 text-xs font-mono">
-        <span className="text-profit">BUY {signal.buyExchange}</span>
+        <a
+          href={buyExchange?.url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-profit hover:underline underline-offset-4"
+        >
+          BUY {signal.buyExchange}
+        </a>
         <ArrowRight className="h-3 w-3 text-muted-foreground" />
-        <span className="text-loss">SELL {signal.sellExchange}</span>
+        <a
+          href={sellExchange?.url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-loss hover:underline underline-offset-4"
+        >
+          SELL {signal.sellExchange}
+        </a>
       </div>
       <div className="flex items-center justify-between mt-1.5 text-xs font-mono text-muted-foreground">
         <span>

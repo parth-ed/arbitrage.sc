@@ -28,7 +28,14 @@ export function PriceTable({ coins }: PriceTableProps) {
             <th className="text-left py-3 px-4 text-muted-foreground font-medium sticky left-0 bg-card z-10">COIN</th>
             {EXCHANGES.map(ex => (
               <th key={ex.id} className="text-right py-3 px-3 text-muted-foreground font-medium whitespace-nowrap">
-                {ex.name.toUpperCase()}
+                <a
+                  href={ex.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-foreground transition-colors underline-offset-4 hover:underline"
+                >
+                  {ex.name.toUpperCase()}
+                </a>
               </th>
             ))}
             <th className="text-right py-3 px-4 text-muted-foreground font-medium">SPREAD</th>
