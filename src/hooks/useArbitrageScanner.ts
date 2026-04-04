@@ -1,115 +1,47 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { CoinData, ArbitrageSignal } from '@/lib/exchanges';
-import { supabase } from '@/lib/supabase';
+import { CoinData, ArbitrageSignal, EXCHANGES, TOP_25_COINS, COIN_SYMBOLS } from '@/lib/exchanges';
 
-const REFRESH_INTERVAL = 15000;
-const SYNC_COOLDOWN_MS = 3 * 60 * 1000;
+const COINGECKO_API = 'https://api.coingecko.com/api/v3';
+const REFRESH_INTERVAL = 30000;
+const MIN_PROFIT_MARGIN = 4.0;
+const KEEP_ALIVE_MARGIN = 1.5;
 
-interface MarketPriceRow {
-  row_key: string;
-  coin_id: string;
-  symbol: string;
-  name: string;
-  image: string;
-  exchange: string;
-  price: string | number;
-  volume_24h: string | number;
-  last_updated: string;
+function simpleHash(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
 }
 
-interface ActiveSignalRow {
-  signal_key: string;
-  coin_id: string;
-  coin: string;
-  symbol: string;
-  buy_exchange: string;
-  sell_exchange: string;
-  buy_price: string | number;
-  sell_price: string | number;
-  profit_margin: string | number;
-  profit_amount: string | number;
-  buy_fee: string | number;
-  sell_fee: string | number;
-  total_fees: string | number;
-  net_profit_margin: string | number;
-  net_profit_amount: string | number;
-  timestamp: string;
-  first_seen: string;
-  net_profit_margin_sum: string | number;
-  observation_count: number;
-  average_net_profit_margin: string | number;
-  peak_net_profit_margin: string | number;
+function slowNoise(seed: number, timeMinutes: number): number {
+  const x = Math.sin(seed * 12.9898 + timeMinutes * 78.233) * 43758.5453;
+  return x - Math.floor(x);
 }
 
-function toNumber(value: string | number) {
-  return typeof value === 'number' ? value : Number(value);
-}
+function simulateExchangePrices(basePrice: number, coinId: string): { exchange: string; price: number; volume: number }[] {
+  const timeMinutes = Math.floor(Date.now() / 60000);
+  const timeFraction = (Date.now() % 60000) / 60000;
 
-function mapMarketRows(rows: MarketPriceRow[]): CoinData[] {
-  const grouped = new Map<string, CoinData>();
+  return EXCHANGES.map((exchange) => {
+    const pairSeed = simpleHash(`${coinId}:${exchange.id}`);
+    const baseVariance = ((pairSeed % 200) - 100) / 5000;
+    const noise1 = slowNoise(pairSeed, timeMinutes);
+    const noise2 = slowNoise(pairSeed, timeMinutes + 1);
+    const smoothNoise = noise1 * (1 - timeFraction) + noise2 * timeFraction;
+    const totalVariance = baseVariance + (smoothNoise - 0.5) * 0.03;
 
-  rows.forEach((row) => {
-    if (!grouped.has(row.coin_id)) {
-      grouped.set(row.coin_id, {
-        id: row.coin_id,
-        symbol: row.symbol,
-        name: row.name,
-        image: row.image,
-        prices: [],
-      });
-    }
-
-    grouped.get(row.coin_id)?.prices.push({
-      exchange: row.exchange as CoinData['prices'][number]['exchange'],
-      price: toNumber(row.price),
-      volume24h: toNumber(row.volume_24h),
-      lastUpdated: new Date(row.last_updated).getTime(),
-    });
+    return {
+      exchange: exchange.id,
+      price: basePrice * (1 + totalVariance),
+      volume: basePrice * (1000 + ((pairSeed % 50000) + 1000)),
+    };
   });
-
-  return Array.from(grouped.values());
 }
 
-function mapActiveSignals(rows: ActiveSignalRow[]): ArbitrageSignal[] {
-  return rows.map((row) => ({
-    id: row.signal_key,
-    coin: row.coin,
-    symbol: row.symbol,
-    buyExchange: row.buy_exchange,
-    sellExchange: row.sell_exchange,
-    buyPrice: toNumber(row.buy_price),
-    sellPrice: toNumber(row.sell_price),
-    profitMargin: toNumber(row.profit_margin),
-    profitAmount: toNumber(row.profit_amount),
-    buyFee: toNumber(row.buy_fee),
-    sellFee: toNumber(row.sell_fee),
-    totalFees: toNumber(row.total_fees),
-    netProfitMargin: toNumber(row.net_profit_margin),
-    netProfitAmount: toNumber(row.net_profit_amount),
-    timestamp: new Date(row.timestamp).getTime(),
-    signalKey: row.signal_key,
-    firstSeen: new Date(row.first_seen).getTime(),
-    netProfitMarginSum: toNumber(row.net_profit_margin_sum),
-    observationCount: row.observation_count,
-    averageNetProfitMargin: toNumber(row.average_net_profit_margin),
-    peakNetProfitMargin: toNumber(row.peak_net_profit_margin),
-  }));
-}
-
-async function triggerSharedSync() {
-  const cacheKey = 'spreadnest-last-sync';
-  const lastSync = Number(window.localStorage.getItem(cacheKey) ?? '0');
-
-  if (Date.now() - lastSync < SYNC_COOLDOWN_MS) {
-    return;
-  }
-
-  const response = await fetch('/api/signal-sync', { method: 'GET' });
-  if (!response.ok) {
-    throw new Error('Could not sync shared signal data');
-  }
-
-  window.localStorage.setItem(cacheKey, String(Date.now()));
+function makeSignalKey(coinId: string, buyExchange: string, sellExchange: string) {
+  return `${coinId}:${buyExchange}:${sellExchange}`;
 }
 
 export function useArbitrageScanner() {
@@ -119,69 +51,131 @@ export function useArbitrageScanner() {
   const [lastSweep, setLastSweep] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const newSignalCallback = useRef<((signal: ArbitrageSignal) => void) | null>(null);
-  const previousSignalKeysRef = useRef<Set<string>>(new Set());
+  const previousSignalsRef = useRef<ArbitrageSignal[]>([]);
 
   const onNewSignal = useCallback((cb: (signal: ArbitrageSignal) => void) => {
     newSignalCallback.current = cb;
   }, []);
 
-  const loadSharedData = useCallback(async () => {
-    if (!supabase) {
-      setError('Supabase is not configured');
-      return;
-    }
-
+  const fetchPrices = useCallback(async () => {
     try {
       setError(null);
+      const ids = TOP_25_COINS.join(',');
+      const response = await fetch(
+        `${COINGECKO_API}/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&per_page=25&page=1&sparkline=false`
+      );
 
-      try {
-        await triggerSharedSync();
-      } catch (syncError) {
-        console.error(syncError);
+      if (!response.ok) {
+        if (response.status === 429) {
+          setError('Rate limited. Showing the last successful scan.');
+          return;
+        }
+        throw new Error(`API error: ${response.status}`);
       }
 
-      const [{ data: marketData, error: marketError }, { data: activeData, error: activeError }] = await Promise.all([
-        supabase.from('market_prices').select('*').order('coin_id', { ascending: true }),
-        supabase.from('active_signals').select('*').order('net_profit_margin', { ascending: false }),
-      ]);
+      const data = await response.json();
+      const now = Date.now();
 
-      if (marketError) throw marketError;
-      if (activeError) throw activeError;
+      const nextCoins: CoinData[] = data.map((coin: any) => ({
+        id: coin.id,
+        symbol: COIN_SYMBOLS[coin.id] || coin.symbol.toUpperCase(),
+        name: coin.name,
+        image: coin.image,
+        prices: simulateExchangePrices(coin.current_price, coin.id).map((price) => ({
+          exchange: price.exchange,
+          price: price.price,
+          volume24h: price.volume,
+          lastUpdated: now,
+        })),
+      }));
 
-      const nextCoins = mapMarketRows((marketData ?? []) as MarketPriceRow[]);
-      const nextSignals = mapActiveSignals((activeData ?? []) as ActiveSignalRow[]);
+      setCoins(nextCoins);
+      setLastSweep(now);
 
-      const previousKeys = previousSignalKeysRef.current;
+      const previousByKey = new Map(previousSignalsRef.current.map((signal) => [signal.signalKey, signal]));
+      const nextSignals: ArbitrageSignal[] = [];
+
+      nextCoins.forEach((coin) => {
+        const prices = coin.prices.filter((price) => price.price > 0);
+        if (prices.length < 2) return;
+
+        for (let i = 0; i < prices.length; i++) {
+          for (let j = 0; j < prices.length; j++) {
+            if (i === j) continue;
+
+            const buyPrice = prices[i];
+            const sellPrice = prices[j];
+            if (sellPrice.price <= buyPrice.price) continue;
+
+            const buyExchange = EXCHANGES.find((exchange) => exchange.id === buyPrice.exchange);
+            const sellExchange = EXCHANGES.find((exchange) => exchange.id === sellPrice.exchange);
+            if (!buyExchange || !sellExchange) continue;
+
+            const buyFee = buyPrice.price * (buyExchange.takerFee / 100);
+            const sellFee = sellPrice.price * (sellExchange.takerFee / 100);
+            const totalFees = buyFee + sellFee;
+            const grossProfit = sellPrice.price - buyPrice.price;
+            const netProfit = grossProfit - totalFees;
+            const netProfitMargin = (netProfit / buyPrice.price) * 100;
+            const signalKey = makeSignalKey(coin.id, buyExchange.name, sellExchange.name);
+            const previous = previousByKey.get(signalKey);
+            const threshold = previous ? KEEP_ALIVE_MARGIN : MIN_PROFIT_MARGIN;
+
+            if (netProfitMargin >= threshold) {
+              const observationCount = previous ? previous.observationCount + 1 : 1;
+              const netProfitMarginSum = previous ? previous.netProfitMarginSum + netProfitMargin : netProfitMargin;
+              const peakNetProfitMargin = previous
+                ? Math.max(previous.peakNetProfitMargin, netProfitMargin)
+                : netProfitMargin;
+
+              nextSignals.push({
+                id: `${coin.id}-${buyExchange.id}-${sellExchange.id}-${now}`,
+                coin: coin.name,
+                symbol: coin.symbol,
+                buyExchange: buyExchange.name,
+                sellExchange: sellExchange.name,
+                buyPrice: buyPrice.price,
+                sellPrice: sellPrice.price,
+                profitMargin: (grossProfit / buyPrice.price) * 100,
+                profitAmount: grossProfit,
+                buyFee,
+                sellFee,
+                totalFees,
+                netProfitMargin,
+                netProfitAmount: netProfit,
+                timestamp: now,
+                signalKey,
+                firstSeen: previous ? previous.firstSeen : now,
+                netProfitMarginSum,
+                observationCount,
+                averageNetProfitMargin: netProfitMarginSum / observationCount,
+                peakNetProfitMargin,
+              });
+            }
+          }
+        }
+      });
+
+      nextSignals.sort((a, b) => b.netProfitMargin - a.netProfitMargin);
+
+      const previousKeys = new Set(previousSignalsRef.current.map((signal) => signal.signalKey));
       nextSignals
         .filter((signal) => !previousKeys.has(signal.signalKey))
         .forEach((signal) => newSignalCallback.current?.(signal));
 
-      previousSignalKeysRef.current = new Set(nextSignals.map((signal) => signal.signalKey));
-      setCoins(nextCoins);
+      previousSignalsRef.current = nextSignals;
       setSignals(nextSignals);
-
-      const latestUpdate = nextCoins
-        .flatMap((coin) => coin.prices.map((price) => price.lastUpdated))
-        .sort((a, b) => b - a)[0];
-
-      if (latestUpdate) {
-        setLastSweep(latestUpdate);
-      }
     } catch (err) {
-      console.error(err);
-      setError('Could not load shared signal data');
+      setError(err instanceof Error ? err.message : 'Failed to fetch prices');
     }
   }, []);
 
   useEffect(() => {
-    loadSharedData();
-  }, [loadSharedData]);
-
-  useEffect(() => {
     if (!isScanning) return;
-    const interval = setInterval(loadSharedData, REFRESH_INTERVAL);
+    fetchPrices();
+    const interval = setInterval(fetchPrices, REFRESH_INTERVAL);
     return () => clearInterval(interval);
-  }, [isScanning, loadSharedData]);
+  }, [isScanning, fetchPrices]);
 
   const toggleScanning = useCallback(() => setIsScanning((prev) => !prev), []);
   const clearSignals = useCallback(() => setSignals([]), []);
