@@ -166,7 +166,7 @@ export function SignalFeed({ signals, onClear }: SignalFeedProps) {
   const actionableRegular = actionableSignals.filter((signal) => signal.netProfitMargin < 7);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-signal" />
@@ -182,7 +182,7 @@ export function SignalFeed({ signals, onClear }: SignalFeedProps) {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+      <div className="min-h-0 flex-1 overflow-y-auto p-3 space-y-2">
         {signals.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm font-mono">
             <TrendingUp className="h-8 w-8 mb-2 opacity-30" />

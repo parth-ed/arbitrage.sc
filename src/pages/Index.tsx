@@ -42,8 +42,8 @@ const Index = () => {
         </div>
       )}
 
-      <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
-        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+      <div className="flex flex-1 flex-col md:min-h-0 md:flex-row">
+        <div className="flex-1 overflow-y-auto p-4 md:min-h-0 md:p-6">
           <div className="overflow-hidden rounded-lg border border-border bg-card">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-xs font-semibold font-mono text-foreground sm:text-sm">
@@ -54,8 +54,8 @@ const Index = () => {
           </div>
         </div>
 
-        <div className="border-t border-border bg-card/50 md:flex md:w-80 md:flex-col md:border-l md:border-t-0">
-          <div className="max-h-[60vh] overflow-hidden md:max-h-none md:flex-1">
+        <div className="border-t border-border bg-card/50 md:flex md:min-h-0 md:w-80 md:flex-col md:border-l md:border-t-0">
+          <div className="h-[50vh] overflow-hidden md:h-auto md:min-h-0 md:flex-1">
             <SignalFeed signals={signals} onClear={clearSignals} />
           </div>
         </div>
