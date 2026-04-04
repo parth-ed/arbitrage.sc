@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { CoinData, ArbitrageSignal, HistorySignal } from '@/lib/exchanges';
+import { CoinData, ArbitrageSignal } from '@/lib/exchanges';
 import { supabase } from '@/lib/supabase';
 
 const REFRESH_INTERVAL = 15000;
-const MAX_HISTORY = 200;
 const SYNC_COOLDOWN_MS = 3 * 60 * 1000;
 
 interface MarketPriceRow {
@@ -40,21 +39,6 @@ interface ActiveSignalRow {
   observation_count: number;
   average_net_profit_margin: string | number;
   peak_net_profit_margin: string | number;
-}
-
-interface HistorySignalRow {
-  id: string;
-  symbol: string;
-  buy_exchange: string;
-  sell_exchange: string;
-  buy_price: string | number;
-  sell_price: string | number;
-  average_net_profit_margin: string | number;
-  peak_net_profit_margin: string | number;
-  net_profit_amount: string | number;
-  duration: number;
-  expired_at: string;
-  created_at: string;
 }
 
 function toNumber(value: string | number) {
@@ -112,34 +96,6 @@ function mapActiveSignals(rows: ActiveSignalRow[]): ArbitrageSignal[] {
   }));
 }
 
-function mapHistoryRows(rows: HistorySignalRow[]): HistorySignal[] {
-  return rows.map((row) => ({
-    id: row.id,
-    coin: row.symbol,
-    symbol: row.symbol,
-    buyExchange: row.buy_exchange,
-    sellExchange: row.sell_exchange,
-    buyPrice: toNumber(row.buy_price),
-    sellPrice: toNumber(row.sell_price),
-    profitMargin: 0,
-    profitAmount: 0,
-    buyFee: 0,
-    sellFee: 0,
-    totalFees: 0,
-    netProfitMargin: toNumber(row.average_net_profit_margin),
-    netProfitAmount: toNumber(row.net_profit_amount),
-    timestamp: new Date(row.expired_at).getTime(),
-    signalKey: `${row.symbol}:${row.buy_exchange}:${row.sell_exchange}:${row.expired_at}`,
-    firstSeen: new Date(row.created_at).getTime() - row.duration,
-    netProfitMarginSum: toNumber(row.average_net_profit_margin),
-    observationCount: 1,
-    averageNetProfitMargin: toNumber(row.average_net_profit_margin),
-    peakNetProfitMargin: toNumber(row.peak_net_profit_margin),
-    expiredAt: new Date(row.expired_at).getTime(),
-    duration: row.duration,
-  }));
-}
-
 async function triggerSharedSync() {
   const cacheKey = 'spreadnest-last-sync';
   const lastSync = Number(window.localStorage.getItem(cacheKey) ?? '0');
@@ -159,7 +115,6 @@ async function triggerSharedSync() {
 export function useArbitrageScanner() {
   const [coins, setCoins] = useState<CoinData[]>([]);
   const [signals, setSignals] = useState<ArbitrageSignal[]>([]);
-  const [history, setHistory] = useState<HistorySignal[]>([]);
   const [isScanning, setIsScanning] = useState(true);
   const [lastSweep, setLastSweep] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
@@ -185,20 +140,16 @@ export function useArbitrageScanner() {
         console.error(syncError);
       }
 
-      const [{ data: marketData, error: marketError }, { data: activeData, error: activeError }, { data: historyData, error: historyError }] =
-        await Promise.all([
-          supabase.from('market_prices').select('*').order('coin_id', { ascending: true }),
-          supabase.from('active_signals').select('*').order('net_profit_margin', { ascending: false }),
-          supabase.from('signal_history').select('*').order('expired_at', { ascending: false }).limit(MAX_HISTORY),
-        ]);
+      const [{ data: marketData, error: marketError }, { data: activeData, error: activeError }] = await Promise.all([
+        supabase.from('market_prices').select('*').order('coin_id', { ascending: true }),
+        supabase.from('active_signals').select('*').order('net_profit_margin', { ascending: false }),
+      ]);
 
       if (marketError) throw marketError;
       if (activeError) throw activeError;
-      if (historyError) throw historyError;
 
       const nextCoins = mapMarketRows((marketData ?? []) as MarketPriceRow[]);
       const nextSignals = mapActiveSignals((activeData ?? []) as ActiveSignalRow[]);
-      const nextHistory = mapHistoryRows((historyData ?? []) as HistorySignalRow[]);
 
       const previousKeys = previousSignalKeysRef.current;
       nextSignals
@@ -208,7 +159,6 @@ export function useArbitrageScanner() {
       previousSignalKeysRef.current = new Set(nextSignals.map((signal) => signal.signalKey));
       setCoins(nextCoins);
       setSignals(nextSignals);
-      setHistory(nextHistory);
 
       const latestUpdate = nextCoins
         .flatMap((coin) => coin.prices.map((price) => price.lastUpdated))
@@ -235,18 +185,15 @@ export function useArbitrageScanner() {
 
   const toggleScanning = useCallback(() => setIsScanning((prev) => !prev), []);
   const clearSignals = useCallback(() => setSignals([]), []);
-  const clearHistory = useCallback(() => setHistory([]), []);
 
   return {
     coins,
     signals,
-    history,
     isScanning,
     lastSweep,
     error,
     toggleScanning,
     clearSignals,
-    clearHistory,
     onNewSignal,
   };
 }

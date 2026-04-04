@@ -3,7 +3,6 @@ import { useArbitrageScanner } from '@/hooks/useArbitrageScanner';
 import { useAlertSound } from '@/hooks/useAlertSound';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { SignalFeed } from '@/components/SignalFeed';
-import { SignalHistory } from '@/components/SignalHistory';
 import { PriceTable } from '@/components/PriceTable';
 import { AlertTriangle } from 'lucide-react';
 
@@ -13,12 +12,10 @@ const Index = () => {
   const {
     coins,
     signals,
-    history,
     isScanning,
     error,
     toggleScanning,
     clearSignals,
-    clearHistory,
     onNewSignal,
   } = useArbitrageScanner();
 
@@ -58,11 +55,8 @@ const Index = () => {
         </div>
 
         <div className="border-t border-border bg-card/50 md:flex md:w-80 md:flex-col md:border-l md:border-t-0">
-          <div className="max-h-[60vh] overflow-hidden border-b border-border md:flex-1">
+          <div className="max-h-[60vh] overflow-hidden md:max-h-none md:flex-1">
             <SignalFeed signals={signals} onClear={clearSignals} />
-          </div>
-          <div className="max-h-[50vh] overflow-hidden md:flex-1">
-            <SignalHistory history={history} onClear={clearHistory} />
           </div>
         </div>
       </div>
